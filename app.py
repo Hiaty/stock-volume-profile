@@ -207,4 +207,4 @@ for col, label in [(tcol1, "1H"), (tcol2, "4H")]:
 
 # ── Footer ─────────────────────────────────────────────────
 st.divider()
-st.caption("Data via Yahoo Finance · 60-day lookback · 1-min bars aggregated to 1H/4H · Value Area = 70% of total volume")
+st.caption("Data via Yahoo Finance · 365-day lookback · 1H bars aggregated to 4H · Value Area = 70% of total volume")

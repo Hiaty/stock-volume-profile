@@ -11,9 +11,9 @@ VA_PCT      = 0.70
 TOP_N_PEAKS = 6
 
 
-def fetch_data(ticker: str):
+def fetch_data(ticker: str, period: str = "365d"):
     t = yf.Ticker(ticker)
-    df_1h = t.history(period="60d", interval="1h")
+    df_1h = t.history(period=period, interval="1h")
     if df_1h.empty:
         raise ValueError(f"Cannot fetch data for '{ticker}'. Check the ticker symbol.")
     df_1h.index = pd.to_datetime(df_1h.index)
@@ -79,9 +79,9 @@ def find_peaks(centers, vp, top_n=TOP_N_PEAKS):
     return [(centers[i], vp[i]) for i in top]
 
 
-def analyze(ticker: str):
+def analyze(ticker: str, period: str = "365d"):
     """Return analysis dict for both timeframes."""
-    df_1h, df_4h = fetch_data(ticker)
+    df_1h, df_4h = fetch_data(ticker, period=period)
     result = {}
     for label, df in [("1H", df_1h), ("4H", df_4h)]:
         centers, vp  = build_volume_profile(df)
