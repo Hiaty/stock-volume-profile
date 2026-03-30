@@ -65,7 +65,7 @@ vah_1h = data["1H"]["vah"]
 
 # ── Top metrics ────────────────────────────────────────────
 st.divider()
-m1, m2, m3, m4, m5 = st.columns(5)
+m1, m2, m3, m4, m5, m6 = st.columns(6)
 def metric(col, label, value, sub=None, color="#e6edf3"):
     with col:
         st.markdown(f"""
@@ -81,6 +81,14 @@ metric(m2, "POC (1H)",       f"${poc_1h:.2f}",   sub=f"{pct_to_poc:+.1f}% from n
 metric(m3, "Value Area Low", f"${val_1h:.2f}",   color="#3fb950")
 metric(m4, "Value Area High",f"${vah_1h:.2f}",   color="#3fb950")
 metric(m5, "VA Width",       f"${vah_1h-val_1h:.2f}", sub="70% of volume", color="#79c0ff")
+df_1h_ref = data["1H"]["df"]
+ma100_val = df_1h_ref["Close"].rolling(100).mean().iloc[-1]
+ma200_val = df_1h_ref["Close"].rolling(200).mean().iloc[-1]
+ma100_pct = (cur - ma100_val) / ma100_val * 100
+metric(m6, "MA100 / MA200",
+       f"${ma100_val:.2f}",
+       sub=f"MA200 ${ma200_val:.2f}  |  {ma100_pct:+.1f}% vs now",
+       color="#79c0ff")
 st.write("")
 
 # ── Charts ─────────────────────────────────────────────────
@@ -105,7 +113,27 @@ def build_chart(info: dict, label: str):
         horizontal_spacing=0.01,
     )
 
-    # Price line
+    # Moving Averages
+    ma_config = [
+        (20,  "#f0c040", 1.0),
+        (50,  "#ff7b72", 1.0),
+        (100, "#79c0ff", 1.2),
+        (200, "#bc8cff", 1.2),
+    ]
+    for period_ma, color, width in ma_config:
+        ma = df["Close"].rolling(period_ma).mean()
+        if ma.notna().sum() < 2:
+            continue
+        fig.add_trace(go.Scatter(
+            x=list(range(len(df))),
+            y=ma.values,
+            mode="lines",
+            line=dict(color=color, width=width, dash="dot"),
+            name=f"MA{period_ma}",
+            hovertemplate=f"MA{period_ma}: %{{y:.2f}}<extra></extra>",
+        ), row=1, col=1)
+
+    # Price line (on top of MAs)
     fig.add_trace(go.Scatter(
         x=list(range(len(df))),
         y=df["Close"].values,
@@ -167,8 +195,13 @@ def build_chart(info: dict, label: str):
         plot_bgcolor=PANEL,
         font=dict(color="#c9d1d9", size=11),
         title=dict(text=f"<b>{ticker}  {label}</b>", font=dict(size=14, color="white"), x=0.01),
-        showlegend=False,
-        margin=dict(l=10, r=10, t=40, b=30),
+        showlegend=True,
+        legend=dict(
+            orientation="h", x=0.01, y=1.08,
+            font=dict(size=10, color="#c9d1d9"),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        margin=dict(l=10, r=10, t=55, b=30),
         xaxis=dict(
             tickvals=tick_vals, ticktext=tick_text,
             gridcolor=GRID, zeroline=False, color="#8b949e",
