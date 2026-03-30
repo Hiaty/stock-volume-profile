@@ -81,13 +81,12 @@ metric(m2, "POC (1H)",       f"${poc_1h:.2f}",   sub=f"{pct_to_poc:+.1f}% from n
 metric(m3, "Value Area Low", f"${val_1h:.2f}",   color="#3fb950")
 metric(m4, "Value Area High",f"${vah_1h:.2f}",   color="#3fb950")
 metric(m5, "VA Width",       f"${vah_1h-val_1h:.2f}", sub="70% of volume", color="#79c0ff")
-df_1h_ref = data["1H"]["df"]
-ma100_val = df_1h_ref["Close"].rolling(100).mean().iloc[-1]
-ma200_val = df_1h_ref["Close"].rolling(200).mean().iloc[-1]
-ma100_pct = (cur - ma100_val) / ma100_val * 100
-metric(m6, "MA100 / MA200",
+ma100_val = data["ma"].get("ma100", 0) or 0
+ma200_val = data["ma"].get("ma200", 0) or 0
+ma100_pct = (cur - ma100_val) / ma100_val * 100 if ma100_val else 0
+metric(m6, "MA100(D) / MA200(D)",
        f"${ma100_val:.2f}",
-       sub=f"MA200 ${ma200_val:.2f}  |  {ma100_pct:+.1f}% vs now",
+       sub=f"MA200 ${ma200_val:.2f}  ({ma100_pct:+.1f}%)",
        color="#79c0ff")
 st.write("")
 
@@ -96,7 +95,7 @@ BG      = "#0d1117"
 PANEL   = "#161b22"
 GRID    = "#21262d"
 
-def build_chart(info: dict, label: str):
+def build_chart(info: dict, label: str, ma: dict = None):
     df      = info["df"]
     centers = info["centers"]
     vp      = info["vp"]
@@ -113,25 +112,23 @@ def build_chart(info: dict, label: str):
         horizontal_spacing=0.01,
     )
 
-    # Moving Averages
+    # Moving Averages (日线级别，画水平线)
+    ma_data = ma or {}
     ma_config = [
-        (20,  "#f0c040", 1.0),
-        (50,  "#ff7b72", 1.0),
-        (100, "#79c0ff", 1.2),
-        (200, "#bc8cff", 1.2),
+        ("ma20",  "MA20",  "#f0c040", 1.0),
+        ("ma50",  "MA50",  "#ff7b72", 1.0),
+        ("ma100", "MA100", "#79c0ff", 1.4),
+        ("ma200", "MA200", "#bc8cff", 1.4),
     ]
-    for period_ma, color, width in ma_config:
-        ma = df["Close"].rolling(period_ma).mean()
-        if ma.notna().sum() < 2:
+    for key, name, color, width in ma_config:
+        v = ma_data.get(key)
+        if v is None:
             continue
-        fig.add_trace(go.Scatter(
-            x=list(range(len(df))),
-            y=ma.values,
-            mode="lines",
-            line=dict(color=color, width=width, dash="dot"),
-            name=f"MA{period_ma}",
-            hovertemplate=f"MA{period_ma}: %{{y:.2f}}<extra></extra>",
-        ), row=1, col=1)
+        fig.add_hline(y=v, line_color=color, line_dash="dot",
+                      line_width=width, row=1, col=1,
+                      annotation_text=f"{name} ${v:.2f}",
+                      annotation_font=dict(color=color, size=9),
+                      annotation_position="right")
 
     # Price line (on top of MAs)
     fig.add_trace(go.Scatter(
@@ -216,10 +213,10 @@ def build_chart(info: dict, label: str):
 tab1h, tab4h = st.tabs(["1H — 60 Days", "4H — 60 Days"])
 
 with tab1h:
-    st.plotly_chart(build_chart(data["1H"], "1H"), use_container_width=True)
+    st.plotly_chart(build_chart(data["1H"], "1H", data["ma"]), use_container_width=True)
 
 with tab4h:
-    st.plotly_chart(build_chart(data["4H"], "4H"), use_container_width=True)
+    st.plotly_chart(build_chart(data["4H"], "4H", data["ma"]), use_container_width=True)
 
 # ── Key levels table ────────────────────────────────────────
 st.subheader("Key Levels")

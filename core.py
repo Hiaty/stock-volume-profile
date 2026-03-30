@@ -79,10 +79,26 @@ def find_peaks(centers, vp, top_n=TOP_N_PEAKS):
     return [(centers[i], vp[i]) for i in top]
 
 
+def fetch_daily_ma(ticker: str):
+    """Fetch daily closes for MA calculation (up to 2 years)."""
+    t = yf.Ticker(ticker)
+    df = t.history(period="2y", interval="1d")
+    df.index = pd.to_datetime(df.index)
+    return df["Close"].dropna()
+
+
 def analyze(ticker: str, period: str = "365d"):
     """Return analysis dict for both timeframes."""
     df_1h, df_4h = fetch_data(ticker, period=period)
-    result = {}
+    daily_close  = fetch_daily_ma(ticker)
+
+    # Daily MAs
+    ma = {}
+    for p in [20, 50, 100, 200]:
+        v = daily_close.rolling(p).mean().iloc[-1]
+        ma[f"ma{p}"] = round(v, 2) if not pd.isna(v) else None
+
+    result = {"ma": ma}
     for label, df in [("1H", df_1h), ("4H", df_4h)]:
         centers, vp  = build_volume_profile(df)
         poc, poc_idx = find_poc(centers, vp)
